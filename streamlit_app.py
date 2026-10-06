@@ -1,96 +1,131 @@
-import requests
+# Import python packages
+ 
 import streamlit as st
+
+import requests
+ 
 from snowflake.snowpark.functions import col
-
-# --------------------------------------------------
-# App title
-# --------------------------------------------------
-
+ 
+ 
+# Write directly to the app
+ 
 st.title("🥤 Customize Your Smoothie! 🥤")
-
+ 
 st.write("""
+
 Choose the fruits you want in your custom Smoothie!
+
 """)
-
-# --------------------------------------------------
+ 
+ 
 # Get the name for the order
-# --------------------------------------------------
-
+ 
 name_on_order = st.text_input("Name on Smoothie")
-
+ 
 st.write(
+
     "The name on your Smoothie will be:",
+
     name_on_order
+
 )
-
-# --------------------------------------------------
-# Connect to Snowflake
-# --------------------------------------------------
-
+ 
+ 
+# Get the active Snowflake session
+ 
 cnx = st.connection("snowflake")
+
 session = cnx.session()
+ 
+ 
+# Get the fruit options
+ 
+my_dataframe = session.table(
 
-# --------------------------------------------------
-# Get fruit options from Snowflake
-# --------------------------------------------------
+    "smoothies.public.fruit_options"
 
-my_dataframe = (
-    session.table("smoothies.public.fruit_options")
-    .select(col("fruit_name"))
+).select(
+
+    col("fruit_name")
+
 )
-
-# Convert Snowpark result to a Python list
-fruit_options = [
-    row["FRUIT_NAME"]
-    for row in my_dataframe.collect()
-]
-
-# --------------------------------------------------
-# Select ingredients
-# --------------------------------------------------
-
+ 
+ 
+# Multiselect
+ 
 ingredients_list = st.multiselect(
+
     "Choose up to 5 ingredients:",
-    fruit_options,
+
+    my_dataframe,
+
     max_selections=5
+
 )
-
-# --------------------------------------------------
-# Create ingredient string
-# --------------------------------------------------
-
+ 
+ 
+# Create a string from the selected ingredients
+ 
 if ingredients_list:
+ 
+    ingredients_string = ""
+ 
+    for fruit_chosen in ingredients_list:
+ 
+        ingredients_string += fruit_chosen + " "
+ 
+        # Display nutrition heading
 
-    ingredients_string = " ".join(ingredients_list)
+        st.subheader(fruit_chosen + " Nutrition Information")
+ 
+        # Get nutrition information from SmoothieFroot API
 
-    st.write("Your ingredients:", ingredients_string)
-
-    # --------------------------------------------------
-    # Submit Order
-    # --------------------------------------------------
-
-    if st.button("Submit Order"):
-
-        # Escape single quotes
-        safe_name = name_on_order.replace("'", "''")
-        safe_ingredients = ingredients_string.replace("'", "''")
-
-        my_insert_stmt = f"""
-            INSERT INTO smoothies.public.orders
-            (ingredients, name_on_order)
-            VALUES ('{safe_ingredients}', '{safe_name}')
-        """
-
-        session.sql(my_insert_stmt).collect()
-
-        st.success(
-            "Your Smoothie is ordered!",
-            icon="✅"
-        )
         smoothiefroot_response = requests.get(
-       "https://my.smoothiefroot.com/api/fruit/watermelon"
-        )
 
-        #st.text(smoothiefroot_response.text)
-        sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
-     
+            "https://my.smoothiefroot.com/api/fruit/" + fruit_chosen
+
+        )
+ 
+        # Display nutrition information
+
+        sf_df = st.dataframe(
+
+            data=smoothiefroot_response.json(),
+
+            use_container_width=True
+
+        )
+ 
+    # Display selected ingredients
+
+    st.write(ingredients_string)
+ 
+ 
+    # Create the INSERT statement
+ 
+    # my_insert_stmt = """
+
+    # INSERT INTO smoothies.public.orders
+
+    # (ingredients, name_on_order)
+
+    # VALUES ('""" + ingredients_string + """', '""" + name_on_order + """')
+
+    # """
+ 
+    # Submit Order button
+ 
+    time_to_insert = st.button("Submit Order")
+ 
+    if time_to_insert:
+ 
+        # session.sql(my_insert_stmt).collect()
+ 
+        st.success(
+
+            "Your Smoothie is ordered!",
+
+            icon="✅"
+
+        )
+ 
