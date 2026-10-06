@@ -33,7 +33,6 @@ session = cnx.session()
 
 
 # Get the fruit options
-# We now get BOTH FRUIT_NAME and SEARCH_ON
 
 my_dataframe = session.table(
     "smoothies.public.fruit_options"
@@ -43,7 +42,7 @@ my_dataframe = session.table(
 )
 
 
-# Convert the Snowpark DataFrame to a Pandas DataFrame
+# Convert Snowpark DataFrame to Pandas DataFrame
 
 pd_df = my_dataframe.to_pandas()
 
@@ -65,12 +64,12 @@ if ingredients_list:
 
     for fruit_chosen in ingredients_list:
 
-        # Add the selected fruit to the ingredients string
+        # Add fruit to ingredient string
 
         ingredients_string += fruit_chosen + " "
 
 
-        # Find the SEARCH_ON value for the selected fruit
+        # Find SEARCH_ON value
 
         search_on = pd_df.loc[
             pd_df["FRUIT_NAME"] == fruit_chosen,
@@ -78,15 +77,14 @@ if ingredients_list:
         ].iloc[0]
 
 
-        # Display the nutrition heading
+        # Display nutrition heading
 
         st.subheader(
             fruit_chosen + " Nutrition Information"
         )
 
 
-        # Get nutrition information from SmoothieFroot API
-        # Use SEARCH_ON instead of FRUIT_NAME
+        # Get nutrition information from API
 
         smoothiefroot_response = requests.get(
             "https://my.smoothiefroot.com/api/fruit/" + search_on
@@ -106,12 +104,23 @@ if ingredients_list:
     st.write(ingredients_string)
 
 
+    # Create the INSERT statement
+
+    my_insert_stmt = """
+        INSERT INTO smoothies.public.orders
+        (ingredients, name_on_order)
+        VALUES ('""" + ingredients_string + """', '""" + name_on_order + """')
+    """
+
+
     # Submit Order button
 
     time_to_insert = st.button("Submit Order")
 
 
     if time_to_insert:
+
+        session.sql(my_insert_stmt).collect()
 
         st.success(
             "Your Smoothie is ordered!",
